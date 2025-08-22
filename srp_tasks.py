@@ -1,12 +1,12 @@
-# srp_tasks.py
 from abc import ABC, abstractmethod
 
 class Task:
-    def __init__(self, task_id, description, due_date=None, completed=False):
+    def __init__(self, task_id, description, due_date=None, completed=False, priority="medium"):
         self.id = task_id
         self.description = description
         self.due_date = due_date
         self.completed = completed
+        self.priority = priority  # 2.1) เพิ่ม attribute priority
 
     def mark_completed(self):
         self.completed = True
@@ -15,7 +15,8 @@ class Task:
     def __str__(self):
         status = "✓" if self.completed else " "
         due = f" (Due: {self.due_date})" if self.due_date else ""
-        return f"[{status}] {self.id}. {self.description}{due}"
+        priority = f" [Priority: {self.priority}]"  # 2.2) แสดง priority
+        return f"[{status}] {self.id}. {self.description}{due}{priority}"
 
 
 class TaskStorage(ABC):
@@ -38,12 +39,13 @@ class FileTaskStorage(TaskStorage):
             with open(self.filename, "r") as f:
                 for line in f:
                     parts = line.strip().split(',')
-                    if len(parts) == 4:
+                    if len(parts) == 5:  # แก้ให้รองรับ 5 field
                         task_id = int(parts[0])
                         description = parts[1]
                         due_date = parts[2] if parts[2] != 'None' else None
                         completed = parts[3] == 'True'
-                        loaded_tasks.append(Task(task_id, description, due_date, completed))
+                        priority = parts[4] if parts[4] else "medium"
+                        loaded_tasks.append(Task(task_id, description, due_date, completed, priority))
         except FileNotFoundError:
             print(f"No existing task file '{self.filename}' found. Starting fresh.")
         return loaded_tasks
@@ -51,7 +53,7 @@ class FileTaskStorage(TaskStorage):
     def save_tasks(self, tasks):
         with open(self.filename, "w") as f:
             for task in tasks:
-                f.write(f"{task.id},{task.description},{task.due_date},{task.completed}\n")
+                f.write(f"{task.id},{task.description},{task.due_date},{task.completed},{task.priority}\n")
         print(f"Tasks saved to {self.filename}")
 
 
@@ -62,8 +64,8 @@ class TaskManager:
         self.next_id = max([t.id for t in self.tasks] + [0]) + 1 if self.tasks else 1
         print(f"Loaded {len(self.tasks)} tasks. Next ID: {self.next_id}")
 
-    def add_task(self, description, due_date=None):
-        task = Task(self.next_id, description, due_date)
+    def add_task(self, description, due_date=None, priority="medium"):  # 2.3) เพิ่ม priority argument
+        task = Task(self.next_id, description, due_date, completed=False, priority=priority)
         self.tasks.append(task)
         self.next_id += 1
         self.storage.save_tasks(self.tasks)
@@ -100,8 +102,8 @@ if __name__ == "__main__":
     manager = TaskManager(file_storage)
 
     manager.list_tasks()
-    manager.add_task("Review SOLID Principles", "2024-08-10")
-    manager.add_task("Prepare for Final Exam", "2024-08-15")
+    manager.add_task("Review SOLID Principles", "2024-08-10", priority="high")
+    manager.add_task("Prepare for Final Exam", "2024-08-15", priority="medium")
     manager.list_tasks()
     manager.mark_task_completed(1)
     manager.list_tasks()
